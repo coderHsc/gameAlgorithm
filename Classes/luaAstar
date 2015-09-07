@@ -1,0 +1,126 @@
+--lua 实现的A*算法
+
+Astar = {}
+
+local MAXVAL = 100000000
+-- function Astar.init()
+
+--A*搜索
+--搜索从（x1,y1）到（x2,y2）点在地图map上的路径
+function Astar.isCanMove(line,row)
+	local minLine = MapMng.getMovedLine() + 1 
+	local maxLine = MapMng.getMovedLine() + 10
+	local minRow  = 1
+	local maxRow  = MAX_ROW
+	if line >=minLine and line <= maxLine and row>= minRow and row <= maxRow then 
+		local gridState = MapMng.getGridState(line, row)
+		if gridState == GRID_STATE_VIALID then
+			return true 
+		else
+			return false 
+		end 
+	end 
+	return false 
+end 
+
+function Astar.search(x1,y1,x2,y2)
+	--初始化a*算法
+	local m_vis      = {}
+	local startPoint = {}
+	startPoint.x = x1
+	startPoint.y = y1
+	startPoint.G = 0 
+	startPoint.H = (12-0)*10+(9-0)*14;
+	startPoint.F = startPoint.G + startPoint.H
+	local m_OpenList  = {}
+	local m_CloseList = {} 
+
+	table.insert(m_OpenList,startPoint)
+	--queue.pushBack(m_OpenList,startPoint)
+	while table.getn(m_OpenList) > 0 do 
+		--1、寻找开席列表中F值最低的格子，我们称它为当前格
+		local tempPoint = {}
+		local tempKey   = 1
+		tempPoint.F = MAXVAL
+		for k , v in pairs(m_OpenList) do 
+			if tempPoint.F > v.F then 
+				tempPoint = v
+				tempKey   = k 
+			end 
+		end 
+		
+		--2、把当前f值最低的格子切换到"关闭列表"
+		table.insert(m_CloseList,tempPoint)
+		if m_vis[ tempPoint.x ] == nil then 
+			m_vis[ tempPoint.x ] = {}
+		end 
+		m_vis[ tempPoint.x ] [ tempPoint.y ]=true
+		--3、从"开启列表"中删除当前f值最低的格子
+		table.remove(m_OpenList,tempKey)
+
+		print('xxxxxxxxxxxx2',tempPoint.x,tempPoint.y)
+
+		--搜索方向
+		local dx={0,0,-1,1}
+		local dy={1,-1,0,0}
+
+		--检查它所有相邻并且可以到达 (障碍物和 "关闭列表" 的方格都不考虑) 的方格.
+		--如果这些方格还不在 "开启列表" 里的话, 将它们加入 "开启列表",
+		--计算这些方格的 G, H 和 F 值各是多少, 并设置它们的 "父方格" 为 C.
+		local nowPoint = tempPoint
+		for i=1 ,4 do 
+			local nextPoint = clone(nowPoint)
+			nextPoint.x  = nowPoint.x + dx[i]
+			nextPoint.y  = nowPoint.y + dy[i]
+			--print('xxxxxxxxxxxxxxxx33',nextPoint.x,nextPoint.y,dx[i],dy[i])
+			nextPoint.px = nowPoint.x 
+			nextPoint.py = nowPoint.y 
+			--如果是上下左右，G值为10，其他斜方向G值设为14
+			nextPoint.G  = nowPoint.G + 10 
+			nextPoint.H  = (12-nextPoint.x)*10+(9-nextPoint.y)*14
+			nextPoint.F  = nextPoint.G + nextPoint.H 
+
+			if m_vis[nextPoint.x] == nil then m_vis[nextPoint.x]= {} end 
+			--判断(是否越界)和(是否可以行走)和是(否在关闭列表中)
+			if Astar.isCanMove(nextPoint.y,nextPoint.x) and (not m_vis[nextPoint.x][nextPoint.y]) then 
+				--如果当前搜索得到当节点a已经在开启列表中，说明之前的搜索已经产生了一条到达a点的路径。
+				--那么我们需要看当前得到a点路径的g值 是否小于之前得到的路径的g值.
+				--如果小的话，需要更改到达a点的路径（即将之前的路径从“开启列表”中移除，添加当前搜索得到的路径）
+				local isInOpenList = false 
+				local tmpKey   = nil 
+				local tmpValue = nil  
+				for k,v in pairs(m_OpenList) do 
+					if v.x == nextPoint.x and v.y ==nextPoint.y then 
+						isInOpenList = true 
+						tmpKey   = k 
+						tmpValue = v 
+						break 
+					end 
+				end 
+
+				if isInOpenList then 
+					if  tmpValue.G > nextPoint.G then 
+						table.remove(m_OpenList,tmpKey)
+						table.insert(m_OpenList,nextPoint)
+						--print('xxxxxxxxxxxx3',nextPoint.x,nextPoint.y,x2,y2)
+					end 
+				else
+					--print('xxxxxxxxxxxx4',nextPoint.x,nextPoint.y,x2,y2,MapMng.getGridState(x, y))
+					table.insert(m_OpenList,nextPoint)
+				end
+
+			end 
+			------------------------------------------------------------------------
+		end 
+		--判断终点是否已经在“开启列表”中了。
+		local isFound = false 
+		for k,v in pairs(m_OpenList) do 
+			if v.x == x2 and v.y ==y2 then 
+				isFound = true 
+				print('路径已找到')
+			end 
+		end 
+
+		if isFound then break  end 
+	end 
+end 	
